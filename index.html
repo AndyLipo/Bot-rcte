@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Recetas Digitales</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #0066cc;
+            text-align: center;
+        }
+        .form-container {
+            background-color: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .file-input {
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #0066cc;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #0052a3;
+        }
+        .results {
+            margin-top: 20px;
+            display: none;
+        }
+        .progress {
+            height: 20px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+            margin-top: 20px;
+            overflow: hidden;
+        }
+        .progress-bar {
+            height: 100%;
+            background-color: #0066cc;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        .template-section {
+            margin-top: 30px;
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+        }
+        .download-zip {
+            background-color: #28a745;
+            display: none;
+            margin-top: 10px;
+        }
+        .error-message {
+            color: #dc3545;
+            margin-top: 10px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Generador de Recetas Digitales</h1>
+    
+    <div class="form-container">
+        <h2>Subir archivos Excel</h2>
+        <form id="recetasForm">
+            <div class="form-group">
+                <label for="pacientesFile">Archivo Excel de Pacientes:</label>
+                <input type="file" id="pacientesFile" name="pacientesFile" class="file-input" accept=".xlsx, .xls" required>
+                <small>Debe contener columnas: Paciente, Fecha_Atencion, Numero_Atencion, Receta, Formula, Cantidad_comp, Nr_de_Frasco</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="formulasFile">Archivo Excel de Fórmulas:</label>
+                <input type="file" id="formulasFile" name="formulasFile" class="file-input" accept=".xlsx, .xls" required>
+                <small>Debe contener columnas: Nº, Detalle</small>
+            </div>
+            
+            <button type="submit" id="generateBtn">Generar Recetas</button>
+        </form>
+        
+        <div class="progress">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+        
+        <div class="error-message" id="errorMessage"></div>
+    </div>
+    
+    <div class="results" id="results">
+        <h2>Recetas Generadas</h2>
+        <div id="recetasList"></div>
+        <button class="download-zip" id="downloadZip">Descargar todas las recetas (ZIP)</button>
+    </div>
+    
+    <div class="template-section">
+        <h2>Formato requerido de archivos Excel</h2>
+        <div>
+            <h3>Archivo de Pacientes</h3>
+            <p>Debe tener las siguientes columnas:</p>
+            <ul>
+                <li>Dr</li>
+                <li>N° Cons</li>
+                <li>Fecha Atención</li>
+                <li>Número Atención</li>
+                <li>Receta (A, B, C, etc.)</li>
+                <li>Paciente</li>
+                <li>Fórmula</li>
+                <li>Cantidad comp</li>
+                <li>N° de Frasco</li>
+            </ul>
+        </div>
+        
+        <div>
+            <h3>Archivo de Fórmulas</h3>
+            <p>Debe tener las siguientes columnas:</p>
+            <ul>
+                <li>Nº</li>
+                <li>Detalle</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('recetasForm');
+            const progressBar = document.getElementById('progressBar');
+            const results = document.getElementById('results');
+            const recetasList = document.getElementById('recetasList');
+            const downloadZipBtn = document.getElementById('downloadZip');
+            const errorMessage = document.getElementById('errorMessage');
+            
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                // Validar archivos
+                const pacientesFile = document.getElementById('pacientesFile').files[0];
+                const formulasFile = document.getElementById('formulasFile').files[0];
+                
+                if (!pacientesFile || !formulasFile) {
+                    showError('Por favor, seleccione ambos archivos Excel.');
+                    return;
+                }
+                
+                // Crear FormData
+                const formData = new FormData();
+                formData.append('pacientesFile', pacientesFile);
+                formData.append('formulasFile', formulasFile);
+                
+                // Mostrar progreso
+                progressBar.style.width = '20%';
+                hideError();
+                
+                // Enviar al servidor
+                fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    progressBar.style.width = '80%';
+                    return response.json();
+                })
+                .then(data => {
+                    progressBar.style.width = '100%';
+                    
+                    if (data.success) {
+                        // Mostrar resultados
+                        results.style.display = 'block';
+                        recetasList.innerHTML = `<p>Se generaron ${data.recetas.length} recetas correctamente.</p>`;
+                        
+                        // Crear lista de recetas
+                        const ul = document.createElement('ul');
+                        data.recetas.forEach(receta => {
+                            const li = document.createElement('li');
+                            li.textContent = `${receta.paciente} - Receta ${receta.receta}`;
+                            ul.appendChild(li);
+                        });
+                        recetasList.appendChild(ul);
+                        
+                        // Mostrar botón de descarga
+                        downloadZipBtn.style.display = 'block';
+                        downloadZipBtn.addEventListener('click', function() {
+                            window.location.href = `/download/${data.zipFile}`;
+                        });
+                    } else {
+                        showError(data.message || 'Ocurrió un error al procesar los archivos.');
+                    }
+                })
+                .catch(error => {
+                    progressBar.style.width = '0%';
+                    showError('Error de conexión. Por favor, intente nuevamente.');
+                    console.error('Error:', error);
+                });
+            });
+            
+            function showError(message) {
+                errorMessage.textContent = message;
+                errorMessage.style.display = 'block';
+            }
+            
+            function hideError() {
+                errorMessage.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
