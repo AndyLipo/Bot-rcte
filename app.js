@@ -75,7 +75,7 @@ async function generarRecetas() {
       
       try {
         // Navegar a la página de creación de recetas
-        await page.goto('https://url-de-tu-plataforma-rcta.com/crear-receta', { waitUntil: 'networkidle2' });
+        await page.goto('https://app.rcta.me/AddPrescription', { waitUntil: 'networkidle2' });
         
         // Completar datos del paciente
         await completarDatosPaciente(page, paciente);
